@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "name": "测试",
+  "version": "1.0",
+  "description": "测试乐天网上免税店自动点击",
+  "browser_action":{
+    "default_popup":"popup.html"
+  },
+  "background":{
+    "scripts":["js/jquery-3.3.1.min.js","js/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://chn.lottedfs.com/kr/product/productDetail?prdNo=*"],
+      "js": ["js/jquery-3.3.1.min.js","js/context.js"]
+    }
+  ],
+  "permissions": [
+  "tabs"
+  ]
+}
