@@ -5,11 +5,19 @@ var nownum = 1;
 var neednum = 1;
 var time=2000;
 var selectIndex = 0;
+var haveSelect = false;//有没有色号
 // setTimeout(getBuys(),4000);
-init();
+// init();
 // var auto = setInterval(function () {
 //     autoCilck(1);
 // },4000);
+// setTimeout(autoClickWhileNoSelect(3),2000);
+// autoClickWhileNoSelect(3);
+$(document).ready(function () {
+    init();
+    // setTimeout(autoClickWhileNoSelect(3),2000);
+
+});
 
 function init() {
     getBuys();
@@ -17,7 +25,7 @@ function init() {
     chrome.runtime.onMessage.addListener(
         function(request, sender, sendResponse) {
             if (request.type == "queryProductInfo"){
-                sendResponse({type: "returnProductInfo","data":getBuys()});
+                sendResponse({"type": "returnProductInfo","data":getBuys(),"haveSelect":haveSelect});
             }else if(request.type == "beginClick"){
                 neednum = request.neednum;
                 time = request.timestamp*1000;
@@ -27,10 +35,37 @@ function init() {
                 },time);
             }else if(request.type == "endClick"){
                 window.clearInterval(auto);
+            }else if(request.type == "reloadContextPage"){
+                location.reload();
             }
         });
+    if(haveSelect == false){
+        chrome.runtime.sendMessage({"type": "queryBgWhileNoSelect"}, function(response) {
+            if(response.type == "returnQueryBgWhileNoSelect"){
+                if(response.flag == false){
+
+                }else if(response.flag == true && response.isend == false){
+                    time = response.data.timestamp;
+                    neednum = response.data.neednum;
+                    setTimeout(autoClickWhileNoSelect(neednum),time);
+                }
+            }
+        });
+    }
 }
 
+function autoClickWhileNoSelect(neednum) {
+    var tmp = $(".buyBtn:not(.soldOut)").length;
+    if(tmp == 0){
+        location.reload();
+    }else{
+        changeNum(neednum);
+        $(".buyBtn:not(.soldOut)").children("a")[1].click();
+        chrome.runtime.sendMessage({"type": "over"}, function(response) {
+
+        });
+    }
+}
 
 function autoCilck(index,neednum) {
      if(!checkIsYouhuo(index)){
@@ -39,11 +74,17 @@ function autoCilck(index,neednum) {
          changeNum(neednum);
          $(".buyBtn").children("a")[1].click();
          window.clearInterval(auto);
+         chrome.runtime.sendMessage({"type": "over"}, function(response) {
+
+         });
      }
 }
 function getBuys(){
     array = new Array();
     var buysArray = $(".optionInfo").children("li").children("a");
+    if(buysArray.length > 0){
+        haveSelect = true;
+    }
     for(var index =0;index<buysArray.length;index++){
         var obj = new Object();
         obj.index = index;

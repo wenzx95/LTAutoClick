@@ -1,11 +1,13 @@
 var isRefresh = false;
 var productInfo;
 var bg;
+var haveSelect = false;
 $(document).ready(function () {
         bg = chrome.extension.getBackgroundPage();
         $("#refresh").click(refresh);
         $("#begin").click(begin);
         $("#end").click(end);
+        addListener();
         if(bg.getDataFlag()){
             $("#proType").empty();
             var data = bg.getData();
@@ -38,29 +40,45 @@ function begin() {
         return;
     }
     saveData(timestamp,neednum,selectIndex);
-    chrome.tabs.query(
-        {active: true, currentWindow: true},
-        function(tabs) {
-            chrome.tabs.sendMessage(
-                tabs[0].id,
-                {"type": "beginClick","neednum":neednum,"timestamp":timestamp,"selectIndex":selectIndex},
-                function(response) {
+    if(haveSelect){
+        chrome.tabs.query(
+            {active: true, currentWindow: true},
+            function(tabs) {
+                chrome.tabs.sendMessage(
+                    tabs[0].id,
+                    {"type": "beginClick","neednum":neednum,"timestamp":timestamp,"selectIndex":selectIndex},
+                    function(response) {
 
-                });
+                    });
+            });
+    }else{
+        var data = new Object();
+        data.selectIndex = -1;
+        data.neednum = neednum;
+        data.time = timestamp;
+        chrome.runtime.sendMessage({"type": "beginWhileNoSelectFromPopup","data":data}, function(response) {
+            if(response.type == "returnBeginWhileNoSelectFromPopup"){
+                reloadContextPage();
+            }
         });
+    }
 }
 
 function end() {
-    chrome.tabs.query(
-        {active: true, currentWindow: true},
-        function(tabs) {
-            chrome.tabs.sendMessage(
-                tabs[0].id,
-                {"type": "endClick"},
-                function(response) {
+    if(haveSelect){
+        chrome.tabs.query(
+            {active: true, currentWindow: true},
+            function(tabs) {
+                chrome.tabs.sendMessage(
+                    tabs[0].id,
+                    {"type": "endClick"},
+                    function(response) {
 
-                });
-        });
+                    });
+            });
+    }else{
+        bg.cleanData();
+    }
 }
 
 function queryProductInfo(){
@@ -71,9 +89,22 @@ function queryProductInfo(){
                 tabs[0].id,
                 {type: "queryProductInfo"},
                 function(response) {
-                    if(response.type == "returnProductInfo"){
-                        productInfo = response.data;
-                        addOption(response.data);
+                    if(response.type == "returnProductInfo") {
+                        if (response.haveSelect == true) {
+                            haveSelect = true;
+                            productInfo = response.data;
+                            addOption(response.data);
+                        }else{
+                            haveSelect = false;
+                            chrome.runtime.sendMessage({"type": "clearOrInitDataWhileNoSelect"}, function(response) {
+                                var arr = new Array();
+                                var obj = new Object();
+                                obj.index = -1;
+                                obj.type = "不存在色号选择";
+                                arr.push(obj);
+                                addOption(arr);
+                            });
+                        }
                     }
                 });
         });
@@ -93,4 +124,26 @@ function saveData(timestamp,neednum,selectIndex) {
     data.time = timestamp;
     data.productInfo = productInfo;
     chrome.runtime.sendMessage({"type": "saveData","data":data}, function(response) { });
+}
+
+function reloadContextPage(){
+    chrome.tabs.query(
+        {active: true, currentWindow: true},
+        function(tabs) {
+            chrome.tabs.sendMessage(
+                tabs[0].id,
+                {type: "reloadContextPage"},
+                function(response) {
+
+                });
+        });
+}
+
+function addListener() {
+    chrome.runtime.onMessage.addListener(
+        function (request, sender, sendResponse) {
+            if (request.type == "playmusic") {
+                $("#mp3")[0].play();
+            }
+        });
 }
