@@ -1,25 +1,26 @@
 var isRefresh = false;
-var productInfo;
 var bg;
+var maxNum;
+var productInfo;
 var haveSelect = false;
 $(document).ready(function () {
-        bg = chrome.extension.getBackgroundPage();
-        $("#refresh").click(refresh);
-        $("#begin").click(begin);
-        $("#end").click(end);
         addListener();
-        if(bg.getDataFlag()){
-            $("#proType").empty();
-            var data = bg.getData();
-            $("#time").val(data.time);
-            $("#neednum").val(data.neednum);
-            addOption(data.productInfo);
-            productInfo = data.productInfo;
-            $("#proType").val(data.selectIndex);
-            isRefresh = true;
-        }
+        initData();
+    });
+
+function initData() {
+    bg = chrome.extension.getBackgroundPage();
+    if(bg.getDataFlag()){
+        $("#proType").empty();
+        var data = bg.getData();
+        $("#time").val(data.time);
+        addOption(data.productInfo,maxNum);
+        // $("#qty").val(data.neednum);
+        $("#neednum").val(data.neednum);
+        $("#proType").val(data.selectIndex);
+        isRefresh = true;
     }
-);
+}
 
 function refresh() {
     $("#proType").empty();
@@ -33,10 +34,11 @@ function begin() {
         return;
     }
     var timestamp = $("#time").val();
+    // var neednum = $("#qty").val();
     var neednum = $("#neednum").val();
     var selectIndex = $("#proType").val();
     if(timestamp==""||neednum==""){
-        alert("请输入数量或者时间间隔");
+        alert("请输入时间间隔");
         return;
     }
     saveData(timestamp,neednum,selectIndex);
@@ -93,16 +95,18 @@ function queryProductInfo(){
                         if (response.haveSelect == true) {
                             haveSelect = true;
                             productInfo = response.data;
-                            addOption(response.data);
+                            maxNum = response.maxNum;
+                            addOption(response.data,maxNum);
                         }else{
                             haveSelect = false;
+                            maxNum = response.maxNum;
                             chrome.runtime.sendMessage({"type": "clearOrInitDataWhileNoSelect"}, function(response) {
                                 var arr = new Array();
                                 var obj = new Object();
                                 obj.index = -1;
                                 obj.type = "不存在色号选择";
                                 arr.push(obj);
-                                addOption(arr);
+                                addOption(arr,maxNum);
                             });
                         }
                     }
@@ -110,18 +114,21 @@ function queryProductInfo(){
         });
 }
 
-function addOption(data){
+function addOption(data,maxNum){
     for(var i=0;i<data.length;i++){
         $("#proType").append("<option value='"+data[i].index+"'>"+data[i].type+" </option>");
     }
-    // $("#proType").val(0);
-    }
+    // for(var i=0;i<maxNum;i++){
+    //     var tmp = i+1;
+    //     $("#qty").append("<option value='"+tmp+"'>"+tmp+" </option>");
+    // }
+}
 
 function saveData(timestamp,neednum,selectIndex) {
     var data = new Object();
     data.neednum = neednum;
     data.selectIndex = selectIndex;
-    data.time = timestamp;
+    data.timestamp = timestamp;
     data.productInfo = productInfo;
     chrome.runtime.sendMessage({"type": "saveData","data":data}, function(response) { });
 }
@@ -140,6 +147,9 @@ function reloadContextPage(){
 }
 
 function addListener() {
+    $("#refresh").click(refresh);
+    $("#begin").click(begin);
+    $("#end").click(end);
     chrome.runtime.onMessage.addListener(
         function (request, sender, sendResponse) {
             if (request.type == "playmusic") {

@@ -5,12 +5,21 @@ var data;
 init();
 
 function init() {
+    addListener();
+}
+
+function addListener() {
     chrome.runtime.onMessage.addListener(
         function (request, sender, sendResponse) {
             if (request.type == "saveData") {
                 data = request.data;
                 haveData = true;
-                haveSelect = true;
+                if(data.selectIndex == -1){
+                    haveSelect = false;
+                }else{
+                    haveSelect = true;
+                }
+                // haveSelect = true;
             }else if(request.type == "queryBgWhileNoSelect"){
                 haveSelect = false
                 if(haveData == false){
